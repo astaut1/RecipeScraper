@@ -1,6 +1,7 @@
 from selenium import webdriver
 from bs4 import BeautifulSoup
 from utils.type_utils import Ingredients, RecipeItem,Directions,Recipe
+from selenium.webdriver.firefox.options import Options
 
 
 def get_ingredients(ingredients_list,title):
@@ -73,7 +74,10 @@ def process_ingredients_line(line):
 
 
 def get_recipe_from_bread_dad(link):
-    driver = webdriver.Firefox()
+    firefox_options = Options()
+    firefox_options.add_argument("-headless")
+    driver = webdriver.Firefox(options = firefox_options)
+
     driver.get(link)
     soup = BeautifulSoup(driver.page_source, "html.parser")
     all_ul_lists = soup.find_all("ul", class_="wp-block-list")

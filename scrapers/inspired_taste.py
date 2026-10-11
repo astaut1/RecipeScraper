@@ -2,7 +2,7 @@ from utils.type_utils import RecipeItem, units, Ingredients, Directions, Tip,Rec
 import unicodedata
 import requests
 from bs4 import BeautifulSoup
-
+from selenium.webdriver.firefox.options import Options
 
 def getlist(all_texts):
     Recipe= []

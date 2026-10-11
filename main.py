@@ -1,7 +1,17 @@
 import tkinter as tk
 from tkinter import messagebox
-from utils.functions import get_recipe
+from scrapers.inspired_taste import get_recipe_from_inspired_taste
+from scrapers.bread_dad import get_recipe_from_bread_dad
 
+
+def get_recipe(url):
+    if url.find("inspiredtaste") >= 0:
+        recipe = get_recipe_from_inspired_taste(url)
+        return recipe
+    if url.find("breaddad") >= 0:
+        recipe = get_recipe_from_bread_dad(url)
+        return recipe
+    return None
 
 class App(tk.Tk):
     def __init__(self):
@@ -123,7 +133,7 @@ class ResultPage(tk.Frame):
         canvas.bind_all(
             "<MouseWheel>",
             lambda event: canvas.yview_scroll(
-                -1 * (event.delta // 120),
+                -1 if event.delta >0 else 1,
                 "units"
             )
         )
@@ -197,7 +207,7 @@ class ResultPage(tk.Frame):
             direction.print()
             title = tk.Label(
                 self.results_frame,
-                text=index + "." +direction.title,
+                text= str(index) + "." +direction.title,
             )
             index+=1
             title.pack(anchor="w", pady=(0, 10))
@@ -221,20 +231,25 @@ class ResultPage(tk.Frame):
 
     def show_ingredients(self,ingredients):
         index = 0
-        print("ingre")
-        print(ingredients)
         for ingredient in ingredients:
             print("1")
-            print(ingredient)
             ingredient.print()
             # tk.Label(self.results_frame,ingredient.title).pack(side="left",padx=10)
             print(ingredient.title)
+            row_frame = tk.Frame(self.results_frame)
+            row_frame.pack(fill='x', padx=10, pady=10)
             title = tk.Label(
-                self.results_frame,
-                text=ingredient.title,
+                row_frame,
+                text="Ingredients",#ingredient.title,
                 font=("Arial", 14, "bold")
             )
-            title.pack(anchor="w", pady=(0, 10))
+            title.pack(side="left", padx =5)
+            tk.Button(
+                row_frame,
+                text="Reset",
+                command=lambda: self.reset_all_values()
+            ).pack(side="left", padx =5)
+
             for recipeitem in ingredient.ingredients:
                 row = tk.Frame(self.results_frame)
                 row.pack(fill="x", padx=20, pady=5)
@@ -312,11 +327,36 @@ class ResultPage(tk.Frame):
         # for item in self.number_entries:
         #     print(item)
 
+    def reset_all_values(self):
+        if self.updating:
+            return
+        # new_value = self.number_vars[changed_index].get()
+        # print("new valye:",new_value,"old value",self.original_values[changed_index])
+        # try:
+        #     new_value = float(new_value)
+        # except ValueError:
+        #     return
+        #
+        # if new_value == 0:
+        #     return
+        #
+        # self.updating = True
+        #
+        # try:
+        #     ratio = new_value/self.original_values[changed_index]
+
+        self.updating = True
+        for i in range(0, len(self.number_vars)):
+            new_number = round(self.original_values[i],2)
+            self.number_vars[i].set(str(new_number))
+        self.updating = False
+        return
+
     def update_all_numbers(self,changed_index):
         if self.updating:
             return
         new_value = self.number_vars[changed_index].get()
-        print("new valye:",new_value,"old value",self.original_values[changed_index])
+        print("new value:",new_value,"old value",self.original_values[changed_index])
         try:
             new_value = float(new_value)
         except ValueError:
@@ -339,6 +379,9 @@ class ResultPage(tk.Frame):
             self.updating = False
         return
 
+    def make_reset_call(self):
+        def rescallbkac(*args):
+            self.reset_all_values()
     def make_callback(self,index):
         def callback(*args):
             self.update_all_numbers(index)
