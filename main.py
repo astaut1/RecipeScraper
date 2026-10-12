@@ -16,9 +16,12 @@ def get_recipe(url):
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-
-        self.title("help me")
+        self.oldUrl = None
+        self.url_list = []
+        self.recipe_list = []
+        self.title("Recipe Scraper")
         self.geometry("500x500")
+        self.scrollbar = False
 
         container = tk.Frame(self)
         container.pack(fill="both", expand=True)
@@ -41,38 +44,61 @@ class App(tk.Tk):
 class URLPage(tk.Frame):
     def __init__(self,parent,controller):
         super().__init__(parent)
+        self.controller = controller
+
 
         tk.Label(self,text="Enter URL:",font=("Helvetica",12)).pack(pady=30)
-
         self.url_entry = tk.Entry(self,text = "hello", width=50)
         self.url_entry.insert(tk.END,"https://breaddad.com/easy-banana-bread-recipe")
         self.url_entry.pack(pady=10)
         self.updating = False
-
+        self.scrollbar_var = tk.BooleanVar(value=self.controller.scrollbar)
+        row_frame = tk.Frame(self)
+        row_frame.pack(fill='x', padx=10, pady=10)
+        tk.Checkbutton(
+            row_frame,
+            text="Scrollbar",
+            variable=self.scrollbar_var,
+            command=self.handle_scrollbar
+        ).pack(side="left", padx=5)
         tk.Button(
-            self,
+            row_frame,
             text="Submit",
             command=self.submit_url
-        ).pack(pady=20)
+        ).pack(side="left", padx=30)
 
-        self.controller = controller
+
+
+    def handle_scrollbar(self):
+        new_state = self.scrollbar_var.get()
+        self.controller.scrollbar = new_state
+        print(self.controller.scrollbar)
 
     def submit_url(self):
         url = self.url_entry.get()
-
-        if not url:
-            messagebox.showerror("URL Error","Please enter a valid URL")
-            return
+        if url == self.controller.oldUrl:
+            self.controller.show_page(ResultPage)
+        elif url in self.controller.url_list:
+            index = self.controller.url_list.index(url)
+            self.controller.pages[ResultPage].show_list(self.controller.recipe_list[index])
+            self.controller.show_page(ResultPage)
 
         else:
-            reciperesult = get_recipe(url)
-            if reciperesult:
-                print(reciperesult)
-                self.controller.pages[ResultPage].show_list(reciperesult)
+            if not url:
+                messagebox.showerror("URL Error","Please enter a valid URL")
+                return
 
-                self.controller.show_page(ResultPage)
             else:
-                messagebox.showerror("URL Error","URL Not Supported")
+                self.controller.oldUrl = url
+                reciperesult = get_recipe(url)
+                self.controller.url_list.append(url)
+                self.controller.recipe_list.append(reciperesult)
+                if reciperesult:
+                    print(reciperesult)
+                    self.controller.pages[ResultPage].show_list(reciperesult)
+                    self.controller.show_page(ResultPage)
+                else:
+                    messagebox.showerror("URL Error","URL Not Supported")
 
         # except Exception as e:
         #     messagebox.showerror("URL Error",e)
@@ -86,26 +112,26 @@ class ResultPage(tk.Frame):
         scroll_container.pack(fill="both", expand=True)
 
         canvas = tk.Canvas(scroll_container)
+        if self.controller.scrollbar:
+            vertical_scrollbar = tk.Scrollbar(
+                scroll_container,
+                orient="vertical",
+                command=canvas.yview
+            )
 
-        vertical_scrollbar = tk.Scrollbar(
-            scroll_container,
-            orient="vertical",
-            command=canvas.yview
-        )
+            horizontal_scrollbar = tk.Scrollbar(
+                scroll_container,
+                orient="horizontal",
+                command=canvas.xview
+            )
 
-        horizontal_scrollbar = tk.Scrollbar(
-            scroll_container,
-            orient="horizontal",
-            command=canvas.xview
-        )
+            canvas.configure(
+                yscrollcommand=vertical_scrollbar.set,
+                xscrollcommand=horizontal_scrollbar.set
+            )
 
-        canvas.configure(
-            yscrollcommand=vertical_scrollbar.set,
-            xscrollcommand=horizontal_scrollbar.set
-        )
-
-        vertical_scrollbar.pack(side="right", fill="y")
-        horizontal_scrollbar.pack(side="bottom", fill="x")
+            vertical_scrollbar.pack(side="right", fill="y")
+            horizontal_scrollbar.pack(side="bottom", fill="x")
         canvas.pack(side="left", fill="both", expand=True)
 
         self.results_frame = tk.Frame(canvas)
@@ -145,11 +171,23 @@ class ResultPage(tk.Frame):
         tk.Button(
             self,
             text="Back",
-            command=lambda: self.controller.show_page(URLPage)
+            command=lambda: self.handle_back()
         ).pack()
 
+
+    def handle_back(self):
+        self.controller.show_page(URLPage)
+
+    def clear_result(self):
+        for widget in self.results_frame.winfo_children():
+            widget.destroy()
+
+            # 2. Clear out the data tracking arrays
+        self.number_vars.clear()
+        self.original_values.clear()
     def show_list(self,result):
         print(result)
+        self.clear_result()
         title = tk.Label(
             self.results_frame,
             text=result.name,
@@ -201,26 +239,36 @@ class ResultPage(tk.Frame):
 
     def show_directions(self,directions):
         print(directions)
-        index =0
+        index =1
         for direction in directions:
             print(direction)
             direction.print()
-            title = tk.Label(
-                self.results_frame,
-                text= str(index) + "." +direction.title,
-            )
+            if len(directions)==1:
+                    title = tk.Label(
+                    self.results_frame,
+                    text=direction.title,
+
+                )
+            else:
+                title = tk.Label(
+                    self.results_frame,
+                    text=str(index) + ". " + direction.title,
+                )
+
             index+=1
+            direindex=1
             title.pack(anchor="w", pady=(0, 10))
             for listitem in direction.instructions:
                 row = tk.Frame(self.results_frame)
                 row.pack(fill="x", padx=20, pady=5)
                 label = tk.Label(
                     row,
-                    text=listitem,
+                    text=str(direindex)+". " +listitem,
                     wraplength=400,
                     justify="left",
                     anchor="w"
                 )
+                direindex+=1
                 label.pack(side="left", fill="x", expand=True)
                 row.bind(
                     "<Configure>",
@@ -249,12 +297,21 @@ class ResultPage(tk.Frame):
                 text="Reset",
                 command=lambda: self.reset_all_values()
             ).pack(side="left", padx =5)
+            tk.Button(
+                row_frame,
+                text="2x",
+                command=lambda: self.change_values_from_ratio(2)
+            ).pack(side="left", padx=5)
+            tk.Button(
+                row_frame,
+                text="3x",
+                command=lambda: self.change_values_from_ratio(3)
+            ).pack(side="left", padx=5)
 
             for recipeitem in ingredient.ingredients:
                 row = tk.Frame(self.results_frame)
                 row.pack(fill="x", padx=20, pady=5)
                 # Number input
-
                 var = tk.StringVar(value=str(recipeitem.quantity))
                 self.original_values.append(float(recipeitem.quantity))
                 number_entry = tk.Entry(row, width=5, textvariable=var)
@@ -369,11 +426,7 @@ class ResultPage(tk.Frame):
 
         try:
             ratio = new_value/self.original_values[changed_index]
-            for i in range(0, len(self.number_vars)):
-                new_number = round(ratio * self.original_values[i],2)
-                if new_number.is_integer():
-                    new_number = int(new_number)
-                self.number_vars[i].set(str(new_number))
+            self.change_values_from_ratio(ratio)
 
         finally:
             self.updating = False
@@ -382,6 +435,15 @@ class ResultPage(tk.Frame):
     def make_reset_call(self):
         def rescallbkac(*args):
             self.reset_all_values()
+        return rescallbkac()
+    def change_values_from_ratio(self,ratio):
+        for i in range(0, len(self.number_vars)):
+            new_number = round(ratio * self.original_values[i], 2)
+            if new_number.is_integer():
+                new_number = int(new_number)
+            self.number_vars[i].set(str(new_number))
+
+
     def make_callback(self,index):
         def callback(*args):
             self.update_all_numbers(index)
